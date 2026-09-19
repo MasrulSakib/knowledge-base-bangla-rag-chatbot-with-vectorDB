@@ -1,0 +1,18 @@
+# Crawling and text cleaning
+requests==2.34.2
+beautifulsoup4==4.15.0
+
+# LangChain, embeddings, vector database
+langchain-core==1.6.3
+langchain-text-splitters==1.1.2
+langchain-community==0.4.2
+langchain-huggingface==1.2.2
+sentence-transformers>=3.0.0
+faiss-cpu==1.15.1
+
+# LLM (Groq, free tier)
+langchain-groq==1.1.3
+python-dotenv==1.2.3
+
+# Chat interface
+streamlit==1.64.0
