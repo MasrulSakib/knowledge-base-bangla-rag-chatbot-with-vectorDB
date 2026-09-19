@@ -25,16 +25,16 @@ chatbot says so instead of guessing.
 
 ## Book information
 
-| | |
-|---|---|
-| **Book** | অব্যক্ত (*Abyakta*) |
-| **Author** | জগদীশচন্দ্র বসু (Jagadish Chandra Bose) |
-| **First published** | 1921 (Ashwin 1328), by বঙ্গীয় বিজ্ঞান পরিষদ |
-| **Source** | [Bengali Wikisource](https://bn.wikisource.org/wiki/অব্যক্ত) |
+|                     |                                                              |
+| ------------------- | ------------------------------------------------------------ |
+| **Book**            | অব্যক্ত (_Abyakta_)                                          |
+| **Author**          | জগদীশচন্দ্র বসু (Jagadish Chandra Bose)                      |
+| **First published** | 1921 (Ashwin 1328), by বঙ্গীয় বিজ্ঞান পরিষদ                 |
+| **Source**          | [Bengali Wikisource](https://bn.wikisource.org/wiki/অব্যক্ত) |
 
-*Abyakta* is a collection of about twenty prose pieces: popular-science essays on plants, sound,
+_Abyakta_ is a collection of about twenty prose pieces: popular-science essays on plants, sound,
 light and the "ether", essays on the struggle behind scientific discovery, and a few stories such as
-the comic science story *পলাতক তুফান*. It is prose, every piece is its own Wikisource subpage, and
+the comic science story _পলাতক তুফান_. It is prose, every piece is its own Wikisource subpage, and
 the content is factual, which suits a question-answering system. The text is in classical Bengali
 (সাধু ভাষা), while questions are usually asked in modern Bengali (চলিত), so retrieval has to match
 meaning rather than exact words.
@@ -65,33 +65,33 @@ flowchart LR
 
 In one line: **Wikisource → Crawling → Cleaning → Chunking → Embeddings → Vector DB → Retrieval → LLM → Answer + Citation**
 
-| Step | What happens | File |
-|---|---|---|
-| Crawling | Asks the MediaWiki API for every page whose title starts with `অব্যক্ত/`, so no chapter list is hard-coded. Each page is downloaded and reduced to book text (navigation, page numbers and footnote markers are removed). Rate-limit responses are retried automatically. | [`src/ingest.py`](src/ingest.py) |
-| Cleaning | Unicode NFC normalisation, removal of invisible characters, footnote markers and extra whitespace. Zero-width joiners are kept because some Bengali letters need them. | [`src/chunking.py`](src/chunking.py) |
-| Chunking | Each chapter is split into overlapping chunks at paragraph, line and sentence (`।`) boundaries. Every chunk stores its book, chapter, section and source URL. | [`src/chunking.py`](src/chunking.py) |
-| Embeddings | `BAAI/bge-m3` turns every chunk into a vector. | [`src/vector_store.py`](src/vector_store.py) |
-| Vector DB | The vectors are stored in a FAISS index saved to disk, one index per chunking strategy. | [`src/vector_store.py`](src/vector_store.py) |
-| Retrieval | The question is embedded with the same model and the 4 nearest chunks are fetched. | [`src/rag_chain.py`](src/rag_chain.py) |
-| Generation | The chunks and the question go into a prompt that tells the LLM to use only that context and to answer in Bengali. | [`src/rag_chain.py`](src/rag_chain.py) |
-| Citation | Source links are built from the metadata of the retrieved chunks, not written by the LLM, so a citation always points to a real chapter. | [`src/rag_chain.py`](src/rag_chain.py), [`app.py`](app.py) |
+| Step       | What happens                                                                                                                                                                                                                                                              | File                                                       |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Crawling   | Asks the MediaWiki API for every page whose title starts with `অব্যক্ত/`, so no chapter list is hard-coded. Each page is downloaded and reduced to book text (navigation, page numbers and footnote markers are removed). Rate-limit responses are retried automatically. | [`src/ingest.py`](src/ingest.py)                           |
+| Cleaning   | Unicode NFC normalisation, removal of invisible characters, footnote markers and extra whitespace. Zero-width joiners are kept because some Bengali letters need them.                                                                                                    | [`src/chunking.py`](src/chunking.py)                       |
+| Chunking   | Each chapter is split into overlapping chunks at paragraph, line and sentence (`।`) boundaries. Every chunk stores its book, chapter, section and source URL.                                                                                                             | [`src/chunking.py`](src/chunking.py)                       |
+| Embeddings | `BAAI/bge-m3` turns every chunk into a vector.                                                                                                                                                                                                                            | [`src/vector_store.py`](src/vector_store.py)               |
+| Vector DB  | The vectors are stored in a FAISS index saved to disk, one index per chunking strategy.                                                                                                                                                                                   | [`src/vector_store.py`](src/vector_store.py)               |
+| Retrieval  | The question is embedded with the same model and the 4 nearest chunks are fetched.                                                                                                                                                                                        | [`src/rag_chain.py`](src/rag_chain.py)                     |
+| Generation | The chunks and the question go into a prompt that tells the LLM to use only that context and to answer in Bengali.                                                                                                                                                        | [`src/rag_chain.py`](src/rag_chain.py)                     |
+| Citation   | Source links are built from the metadata of the retrieved chunks, not written by the LLM, so a citation always points to a real chapter.                                                                                                                                  | [`src/rag_chain.py`](src/rag_chain.py), [`app.py`](app.py) |
 
 **Questions the book cannot answer.** The prompt tells the model to reply with one fixed sentence
-(*"দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।"*) when the context does not contain the answer.
+(_"দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।"_) when the context does not contain the answer.
 The app detects that sentence, shows it, and displays no sources.
 
 ## Technical details
 
-| Item | Choice | Why |
-|---|---|---|
-| Embedding model | `BAAI/bge-m3` | Multilingual, supports Bengali, needs no query or passage prefixes, and matches meaning across the সাধু / চলিত gap. |
-| Chunk size and overlap | 500 / 100 characters (default) | About a short paragraph, so a chunk holds one idea. The overlap keeps an answer that falls on a boundary whole in at least one chunk. |
-| Splitting rule | Paragraph, then line, then sentence end (`।`), then space | Chunks break at natural places, not mid-sentence. |
-| Metadata | `book`, `chapter`, `section` (part *n* of *N* in the chapter), `source_url` | Used for citations. |
-| Vector database | FAISS (`faiss-cpu`) | Simple, fast, stored as plain files. |
-| Retriever | Similarity search, top **k = 4** | Enough context without flooding the prompt. |
-| LLM | Groq `openai/gpt-oss-20b`, temperature 0 | Free tier; temperature 0 keeps answers factual and repeatable. The model name can be changed in `.env`. |
-| Interface | Streamlit chat UI | Minimal code, runs in the browser. |
+| Item                   | Choice                                                                      | Why                                                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Embedding model        | `BAAI/bge-m3`                                                               | Multilingual, supports Bengali, needs no query or passage prefixes, and matches meaning across the সাধু / চলিত gap.                   |
+| Chunk size and overlap | 500 / 100 characters (default)                                              | About a short paragraph, so a chunk holds one idea. The overlap keeps an answer that falls on a boundary whole in at least one chunk. |
+| Splitting rule         | Paragraph, then line, then sentence end (`।`), then space                   | Chunks break at natural places, not mid-sentence.                                                                                     |
+| Metadata               | `book`, `chapter`, `section` (part _n_ of _N_ in the chapter), `source_url` | Used for citations.                                                                                                                   |
+| Vector database        | FAISS (`faiss-cpu`)                                                         | Simple, fast, stored as plain files.                                                                                                  |
+| Retriever              | Similarity search, top **k = 4**                                            | Enough context without flooding the prompt.                                                                                           |
+| LLM                    | Groq `openai/gpt-oss-20b`, temperature 0                                    | Free tier; temperature 0 keeps answers factual and repeatable. The model name can be changed in `.env`.                               |
+| Interface              | Streamlit chat UI                                                           | Minimal code, runs in the browser.                                                                                                    |
 
 Every value above is defined in one place, [`src/config.py`](src/config.py).
 
@@ -127,18 +127,18 @@ Of the nine answerable questions, 8 passed. The one question that cannot be answ
 These are the chatbot's actual answers from the evaluation run above. "Passage retrieved" says
 whether one of the 4 retrieved chunks was from the expected chapter and contained the answer keyword.
 
-| # | Question | Expected answer | Chapter | Chatbot answer | Passage retrieved | Result |
-|---|---|---|---|---|---|---|
-| 1 | লেখক অজন্তার গুহামন্দিরের বাইরে এসে পর্বতগাত্রে কার মূর্তি খোদিত দেখলেন? | প্রশান্ত বুদ্ধমূর্তি | যুক্তকর | প্রশান্ত বুদ্ধমূর্তি। | yes | PASS |
-| 2 | সূর্য পৃথিবী থেকে কত দূরে অবস্থিত বলে লেখক উল্লেখ করেছেন? | নয় কোটি মাইল | আকাশ-স্পন্দন ও আকাশ-সম্ভব জগৎ | নয় কোটি মাইল দূরে অবস্থিত। | yes | PASS |
-| 3 | লেখকের মতে অতি প্রকাণ্ড বটগাছ কত ছোট বীজ থেকে জন্মায়? | সরিষার চেয়েও ছোট বীজ থেকে | গাছের কথা | সরিষা অপেক্ষা ছোট বীজ থেকে জন্মায়। | yes | PASS |
-| 4 | অঙ্কুর বের হওয়ার পর যে অংশ মাটির ভিতরে যায় এবং যে অংশ উপরের দিকে বাড়ে, সেগুলোর নাম কী? | মাটির ভিতরের অংশের নাম মূল, উপরের অংশের নাম কাণ্ড | উদ্ভিদের জন্ম ও মৃত্যু | মূল এবং কাণ্ড। | yes | PASS |
-| 5 | ইতালির অধ্যাপক গ্যালভানিকে লোকেরা কী নামে উপহাস করত? | 'ব্যাঙ-নাচানো' অধ্যাপক | মন্ত্রের সাধন | লোকেরা তাকে “ব্যাঙ‑নাচান” অধ্যাপক বলে উপহাস করত। | yes | PASS |
-| 6 | সোয়ার্জ কোন ধাতু দিয়ে বেলুন তৈরি করেছিলেন? | আলুমিনিয়াম | মন্ত্রের সাধন | অ্যালুমিনিয়াম। | yes | PASS |
-| 7 | জাহাজে প্রচণ্ড ঝড়ের সময় লেখক ঢেউ শান্ত করতে সমুদ্রে কী ঢেলে দিয়েছিলেন? | 'কুন্তল-কেশরী' নামের কেশতৈল | পলাতক তুফান | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি। | yes | **FAIL** |
-| 8 | লঙ্কাদ্বীপ যাওয়ার জন্য লেখক কোন জাহাজে সমুদ্রযাত্রা করেছিলেন? | চুসান জাহাজে | পলাতক তুফান | চুসান জাহাজে। | yes | PASS |
-| 9 | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী কী উত্তর দিত? | নদী উত্তর দিত, "মহাদেবের জটা হইতে" | ভাগীরথীর উৎস-সন্ধানে | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী উত্তর দিত, “মহাদেবের জটা হইতে।” | yes | PASS |
-| 10 | জগদীশচন্দ্র বসু কত সালে নোবেল পুরস্কার পেয়েছিলেন? | বইটিতে এর উল্লেখ নেই। চ্যাটবটের বলা উচিত যে উত্তর বইয়ে পাওয়া যায়নি। | (not in book) | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি। | - | PASS |
+| #   | Question                                                                                  | Expected answer                                                        | Chapter                       | Chatbot answer                                                         | Passage retrieved | Result   |
+| --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- | ----------------- | -------- |
+| 1   | লেখক অজন্তার গুহামন্দিরের বাইরে এসে পর্বতগাত্রে কার মূর্তি খোদিত দেখলেন?                  | প্রশান্ত বুদ্ধমূর্তি                                                   | যুক্তকর                       | প্রশান্ত বুদ্ধমূর্তি।                                                  | yes               | PASS     |
+| 2   | সূর্য পৃথিবী থেকে কত দূরে অবস্থিত বলে লেখক উল্লেখ করেছেন?                                 | নয় কোটি মাইল                                                          | আকাশ-স্পন্দন ও আকাশ-সম্ভব জগৎ | নয় কোটি মাইল দূরে অবস্থিত।                                            | yes               | PASS     |
+| 3   | লেখকের মতে অতি প্রকাণ্ড বটগাছ কত ছোট বীজ থেকে জন্মায়?                                    | সরিষার চেয়েও ছোট বীজ থেকে                                             | গাছের কথা                     | সরিষা অপেক্ষা ছোট বীজ থেকে জন্মায়।                                    | yes               | PASS     |
+| 4   | অঙ্কুর বের হওয়ার পর যে অংশ মাটির ভিতরে যায় এবং যে অংশ উপরের দিকে বাড়ে, সেগুলোর নাম কী? | মাটির ভিতরের অংশের নাম মূল, উপরের অংশের নাম কাণ্ড                      | উদ্ভিদের জন্ম ও মৃত্যু        | মূল এবং কাণ্ড।                                                         | yes               | PASS     |
+| 5   | ইতালির অধ্যাপক গ্যালভানিকে লোকেরা কী নামে উপহাস করত?                                      | 'ব্যাঙ-নাচানো' অধ্যাপক                                                 | মন্ত্রের সাধন                 | লোকেরা তাকে “ব্যাঙ‑নাচান” অধ্যাপক বলে উপহাস করত।                       | yes               | PASS     |
+| 6   | সোয়ার্জ কোন ধাতু দিয়ে বেলুন তৈরি করেছিলেন?                                              | আলুমিনিয়াম                                                            | মন্ত্রের সাধন                 | অ্যালুমিনিয়াম।                                                        | yes               | PASS     |
+| 7   | জাহাজে প্রচণ্ড ঝড়ের সময় লেখক ঢেউ শান্ত করতে সমুদ্রে কী ঢেলে দিয়েছিলেন?                 | 'কুন্তল-কেশরী' নামের কেশতৈল                                            | পলাতক তুফান                   | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | yes               | **FAIL** |
+| 8   | লঙ্কাদ্বীপ যাওয়ার জন্য লেখক কোন জাহাজে সমুদ্রযাত্রা করেছিলেন?                            | চুসান জাহাজে                                                           | পলাতক তুফান                   | চুসান জাহাজে।                                                          | yes               | PASS     |
+| 9   | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী কী উত্তর দিত?                                      | নদী উত্তর দিত, "মহাদেবের জটা হইতে"                                     | ভাগীরথীর উৎস-সন্ধানে          | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী উত্তর দিত, “মহাদেবের জটা হইতে।” | yes               | PASS     |
+| 10  | জগদীশচন্দ্র বসু কত সালে নোবেল পুরস্কার পেয়েছিলেন?                                        | বইটিতে এর উল্লেখ নেই। চ্যাটবটের বলা উচিত যে উত্তর বইয়ে পাওয়া যায়নি। | (not in book)                 | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | -                 | PASS     |
 
 **How a question is scored.** An answerable question passes when the chatbot gives an answer (not the
 refusal) and that answer contains one of the question's keywords. Question 10 passes when the chatbot
@@ -164,12 +164,12 @@ exists in the crawled text and prints a warning if not.
 
 ### Bonus: two chunking strategies compared
 
-| | Strategy A: `small` | Strategy B: `large` |
-|---|---|---|
+|                      | Strategy A: `small`  | Strategy B: `large`   |
+| -------------------- | -------------------- | --------------------- |
 | Chunk size / overlap | 500 / 100 characters | 1000 / 200 characters |
-| Chunks in the index | 651 | 353 |
-| Hit@1 | 7/9 | 7/9 |
-| Hit@4 | 9/9 | 9/9 |
+| Chunks in the index  | 651                  | 353                   |
+| Hit@1                | 7/9                  | 7/9                   |
+| Hit@4                | 9/9                  | 9/9                   |
 
 Both strategies use the same embedding model and the same 9 answerable questions. For each question
 the retriever returns chunks and a hit is counted if a chunk from the right chapter contains the
@@ -209,10 +209,10 @@ python -m src.evaluate             # run the 10 test questions and the chunking 
 
 ### Configuration
 
-| Setting | Where | Purpose |
-|---|---|---|
-| `GROQ_API_KEY` | `.env` | Your Groq key (required for the chatbot and the full evaluation). |
-| `GROQ_MODEL` | `.env` | Overrides the default LLM if Groq retires it. |
+| Setting                             | Where                            | Purpose                                                                                                |
+| ----------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GROQ_API_KEY`                      | `.env`                           | Your Groq key (required for the chatbot and the full evaluation).                                      |
+| `GROQ_MODEL`                        | `.env`                           | Overrides the default LLM if Groq retires it.                                                          |
 | Chunk sizes, top-k, embedding model | [`src/config.py`](src/config.py) | Change once; every step picks it up. Rebuild the index after changing chunking or the embedding model. |
 
 ## Project structure
@@ -251,12 +251,13 @@ abyakta-rag-chatbot/
 
   The refusal behaviour that caused this failure is also what made question 10 pass, so loosening
   the prompt needs to be checked against that question.
+
 - **Small test set.** Nine answerable questions and one refusal question are enough to catch broken
   behaviour, not to rank close alternatives. The chunking comparison is a tie for this reason.
 - **Keyword-based scoring.** Pass and hit checks look for a keyword, not for meaning, so they can
   miss correct answers phrased differently and can count a chunk as a hit without it holding the
   exact answering sentence.
-- **Section labels are positions.** The `section` metadata says "part *n* of *N*" within a chapter;
+- **Section labels are positions.** The `section` metadata says "part _n_ of _N_" within a chapter;
   it is not a heading taken from the book.
 - **Answers depend on the LLM.** The prompt restricts the model to the retrieved context, but a
   language model can still misread or refuse a passage. Sources are shown so answers can be checked.
@@ -265,13 +266,13 @@ abyakta-rag-chatbot/
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| `429 Too Many Requests` during `src.ingest` | The crawler already waits and retries. If it still fails, wait a few minutes and run it again. Adding your email or GitHub link to the `User-Agent` in `src/ingest.py` also helps. |
-| `Vector index 'small' not found` | Run `python -m src.build_index` first. |
-| `GROQ_API_KEY is missing` | Copy `.env.example` to `.env` and paste your key. |
-| The Groq model is not found | Set `GROQ_MODEL` in `.env` to a model your key can use. |
-| A test-question warning about a missing keyword | Wikisource may spell the word differently; update the `keywords` in `tests/test_questions.json`. |
+| Problem                                         | Fix                                                                                                                                                                                |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `429 Too Many Requests` during `src.ingest`     | The crawler already waits and retries. If it still fails, wait a few minutes and run it again. Adding your email or GitHub link to the `User-Agent` in `src/ingest.py` also helps. |
+| `Vector index 'small' not found`                | Run `python -m src.build_index` first.                                                                                                                                             |
+| `GROQ_API_KEY is missing`                       | Copy `.env.example` to `.env` and paste your key.                                                                                                                                  |
+| The Groq model is not found                     | Set `GROQ_MODEL` in `.env` to a model your key can use.                                                                                                                            |
+| A test-question warning about a missing keyword | Wikisource may spell the word differently; update the `keywords` in `tests/test_questions.json`.                                                                                   |
 
 ## License
 
