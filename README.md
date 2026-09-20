@@ -87,6 +87,14 @@ In one line: **Wikisource → Crawling → Cleaning → Chunking → Embeddings 
 | Generation | The chunks and the question go into a prompt that tells the LLM to use only that context and to answer in Bengali.                                                                                                                                                        | [`src/rag_chain.py`](src/rag_chain.py)                     |
 | Citation   | Source links are built from the metadata of the retrieved chunks, not written by the LLM, so a citation always points to a real chapter.                                                                                                                                  | [`src/rag_chain.py`](src/rag_chain.py), [`app.py`](app.py) |
 
+**Crawl result.** The crawler saved 21 pages: the main page and 20 chapter subpages, 199,474
+characters of raw text before cleaning. The chapters are অগ্নি পরীক্ষা, অদৃশ্য আলোক,
+আকাশ-স্পন্দন ও আকাশ-সম্ভব জগৎ, আহত উদ্ভিদ, উদ্ভিদের জন্ম ও মৃত্যু, গাছের কথা, দীক্ষা, নবীন ও প্রবীণ,
+নিবেদন, নির্ব্বাক জীবন, পলাতক তুফান, বিজ্ঞানে সাহিত্য, বোধন, ভাগীরথীর উৎস-সন্ধানে, মনন ও করণ,
+মন্ত্রের সাধন, যুক্তকর, রাণী-সন্দর্শন, স্নায়ুসূত্রে উত্তেজনা-প্রবাহ and হাজির!. This matches the twenty
+pieces the book is documented to contain, so no chapter was missed. The smallest chapter has 1,973
+characters and the largest 19,597.
+
 **Questions the book cannot answer.** The prompt tells the model to reply with one fixed sentence
 (_"দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।"_) when the context does not contain the answer.
 The app detects that sentence, shows it, and displays no sources.
@@ -219,18 +227,22 @@ and cost, not a measured accuracy advantage.
 **Requirements:** Python 3.10 or newer and a free [Groq API key](https://console.groq.com/keys).
 
 ```bash
-# 1. Create and activate a virtual environment
+# 1. Get the code
+git clone https://github.com/MasrulSakib/knowledge-base-bangla-rag-chatbot-with-vectorDB.git
+cd knowledge-base-bangla-rag-chatbot-with-vectorDB
+
+# 2. Create and activate a virtual environment
 python -m venv .venv
 source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 
-# 2. Install dependencies (the first install is large because of PyTorch)
+# 3. Install dependencies (the first install is large because of PyTorch)
 pip install -r requirements.txt
 
-# 3. Add your Groq key
+# 4. Add your Groq key
 cp .env.example .env               # Windows: copy .env.example .env
 #    then open .env and paste your key
 
-# 4. Run the steps in order
+# 5. Run the steps in order
 python -m src.ingest               # crawl the book from Wikisource -> data/chapters.json
 python -m src.build_index          # chunk, embed and save the FAISS indexes -> vector_store/
 streamlit run app.py               # start the chatbot in your browser
@@ -252,7 +264,7 @@ python -m src.evaluate             # run the 10 test questions and the chunking 
 ## Project structure
 
 ```
-abyakta-rag-chatbot/
+knowledge-base-bangla-rag-chatbot-with-vectorDB/
 ├── app.py                  # Streamlit chat interface
 ├── requirements.txt
 ├── .env.example            # copy to .env and add GROQ_API_KEY
