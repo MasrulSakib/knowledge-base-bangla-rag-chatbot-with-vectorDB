@@ -13,6 +13,7 @@ chatbot says so instead of guessing.
 
 ## Contents
 
+- [Demo video](#demo-video)
 - [Book information](#book-information)
 - [How it works](#how-it-works)
 - [Technical details](#technical-details)
@@ -39,7 +40,7 @@ The video shows:
 | ------------------- | ------------------------------------------------------------ |
 | **Book**            | অব্যক্ত (_Abyakta_)                                          |
 | **Author**          | জগদীশচন্দ্র বসু (Jagadish Chandra Bose)                      |
-| **First published** | 1921 (Ashwin 1328), by বঙ্গীয় বিজ্ঞান পরিষদ                 |
+| **Publication**     | First published Ashwin 1328 (1921); the Wikisource edition is the third printing (Poush 1364). Publisher: বঙ্গীয় বিজ্ঞান পরিষদ |
 | **Source**          | [Bengali Wikisource](https://bn.wikisource.org/wiki/অব্যক্ত) |
 
 _Abyakta_ is a collection of about twenty prose pieces: popular-science essays on plants, sound,
@@ -105,6 +106,22 @@ The app detects that sentence, shows it, and displays no sources.
 
 Every value above is defined in one place, [`src/config.py`](src/config.py).
 
+### Why BGE-M3 for Bengali
+
+- **How it supports Bengali.** BGE-M3 is built on the multilingual XLM-RoBERTa model and trained for
+  more than 100 languages, Bengali included. Its tokenizer reads Bengali script, and Bengali questions
+  and passages are placed in the same vector space, so a question is matched to a passage by meaning
+  and not by shared English words. An English-only model cannot do this for a Bengali book.
+- **Classical and modern Bengali.** The book uses সাধু ভাষা ("হইতে", "করিয়া") while questions use
+  চলিত ("থেকে", "করে"). In the evaluation, questions written in modern Bengali retrieved a matching
+  chunk of the classical text for all 9 answerable questions (Hit@4 = 9/9).
+- **Practical fit.** It accepts up to 8192 tokens, far more than our 500 to 1000 character chunks,
+  and it needs no `query:` / `passage:` prefixes.
+- **Other models from the assignment's list.** According to their model cards, `multilingual-e5`
+  expects `query:` and `passage:` prefixes, and `paraphrase-multilingual-MiniLM-L12-v2` cuts input
+  at 128 tokens, which is tight for Bengali chunks of this size. This project did not measure those
+  models; the comparison is based on their documented limits.
+
 ## Results
 
 The evaluation ([`src/evaluate.py`](src/evaluate.py)) asks the chatbot 10 test questions and
@@ -115,7 +132,6 @@ guessing. The block below is written by `python -m src.evaluate`, and the same t
 [`RESULTS.md`](RESULTS.md).
 
 <!-- RESULTS:START -->
-
 ### Test questions
 
 **9 of 10 passed.**
@@ -123,12 +139,11 @@ guessing. The block below is written by `python -m src.evaluate`, and the same t
 ### Chunking strategy comparison
 
 | Strategy | Chunk size / overlap | Chunks | Hit@1 | Hit@4 |
-| -------- | -------------------- | ------ | ----- | ----- |
-| small    | 500 / 100            | 651    | 7/9   | 9/9   |
-| large    | 1000 / 200           | 353    | 7/9   | 9/9   |
+|---|---|---|---|---|
+| small | 500 / 100 | 651 | 7/9 | 9/9 |
+| large | 1000 / 200 | 353 | 7/9 | 9/9 |
 
 A hit means a retrieved chunk is from the right chapter and contains the answer keyword.
-
 <!-- RESULTS:END -->
 
 Of the nine answerable questions, 8 passed. The one question that cannot be answered from the book
@@ -136,21 +151,21 @@ Of the nine answerable questions, 8 passed. The one question that cannot be answ
 
 ### Every test question
 
-These are the chatbot's actual answers from the evaluation run above. "Passage retrieved" says
+These are the chatbot's actual answers from the most recent evaluation run above. "Passage retrieved" says
 whether one of the 4 retrieved chunks was from the expected chapter and contained the answer keyword.
 
-| #   | Question                                                                                  | Expected answer                                                        | Chapter                       | Chatbot answer                                                         | Passage retrieved | Result |
-| --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- | ----------------- | ------ |
-| 1   | লেখক অজন্তার গুহামন্দিরের বাইরে এসে পর্বতগাত্রে কার মূর্তি খোদিত দেখলেন?                  | প্রশান্ত বুদ্ধমূর্তি                                                   | যুক্তকর                       | প্রশান্ত বুদ্ধমূর্তি।                                                  | yes               | PASS   |
-| 2   | সূর্য পৃথিবী থেকে কত দূরে অবস্থিত বলে লেখক উল্লেখ করেছেন?                                 | নয় কোটি মাইল                                                          | আকাশ-স্পন্দন ও আকাশ-সম্ভব জগৎ | নয় কোটি মাইল দূরে অবস্থিত।                                            | yes               | PASS   |
-| 3   | লেখকের মতে অতি প্রকাণ্ড বটগাছ কত ছোট বীজ থেকে জন্মায়?                                    | সরিষার চেয়েও ছোট বীজ থেকে                                             | গাছের কথা                     | সরিষা অপেক্ষা ছোট বীজ থেকে জন্মায়।                                    | yes               | PASS   |
-| 4   | অঙ্কুর বের হওয়ার পর যে অংশ মাটির ভিতরে যায় এবং যে অংশ উপরের দিকে বাড়ে, সেগুলোর নাম কী? | মাটির ভিতরের অংশের নাম মূল, উপরের অংশের নাম কাণ্ড                      | উদ্ভিদের জন্ম ও মৃত্যু        | মূল এবং কাণ্ড।                                                         | yes               | PASS   |
-| 5   | ইতালির অধ্যাপক গ্যালভানিকে লোকেরা কী নামে উপহাস করত?                                      | 'ব্যাঙ-নাচানো' অধ্যাপক                                                 | মন্ত্রের সাধন                 | লোকেরা তাকে “ব্যাঙ‑নাচান” অধ্যাপক বলে উপহাস করত।                       | yes               | PASS   |
-| 6   | সোয়ার্জ কোন ধাতু দিয়ে বেলুন তৈরি করেছিলেন?                                              | আলুমিনিয়াম                                                            | মন্ত্রের সাধন                 | অ্যালুমিনিয়াম।                                                        | yes               | PASS   |
-| 7   | জাহাজে প্রচণ্ড ঝড়ের সময় লেখক ঢেউ শান্ত করতে সমুদ্রে কী ঢেলে দিয়েছিলেন?                 | 'কুন্তল-কেশরী' নামের কেশতৈল                                            | পলাতক তুফান                   | তিনি সমুদ্রে তৈল ঢেলে দিয়েছিলেন।                                      | yes               | PASS   |
-| 8   | লঙ্কাদ্বীপ যাওয়ার জন্য লেখক কোন জাহাজে সমুদ্রযাত্রা করেছিলেন?                            | চুসান জাহাজে                                                           | পলাতক তুফান                   | চুসান জাহাজে।                                                          | yes               | PASS   |
-| 9   | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী কী উত্তর দিত?                                      | নদী উত্তর দিত, "মহাদেবের জটা হইতে"                                     | ভাগীরথীর উৎস-সন্ধানে          | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী উত্তর দিত, “মহাদেবের জটা হইতে।” | yes               | PASS   |
-| 10  | জগদীশচন্দ্র বসু কত সালে নোবেল পুরস্কার পেয়েছিলেন?                                        | বইটিতে এর উল্লেখ নেই। চ্যাটবটের বলা উচিত যে উত্তর বইয়ে পাওয়া যায়নি। | (not in book)                 | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | -                 | PASS   |
+| #   | Question                                                                                  | Expected answer                                                        | Chapter                       | Chatbot answer                                                         | Passage retrieved | Result   |
+| --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- | ----------------- | -------- |
+| 1   | লেখক অজন্তার গুহামন্দিরের বাইরে এসে পর্বতগাত্রে কার মূর্তি খোদিত দেখলেন?                  | প্রশান্ত বুদ্ধমূর্তি                                                   | যুক্তকর                       | প্রশান্ত বুদ্ধমূর্তি।                                                  | yes               | PASS     |
+| 2   | সূর্য পৃথিবী থেকে কত দূরে অবস্থিত বলে লেখক উল্লেখ করেছেন?                                 | নয় কোটি মাইল                                                          | আকাশ-স্পন্দন ও আকাশ-সম্ভব জগৎ | নয় কোটি মাইল দূরে অবস্থিত।                                            | yes               | PASS     |
+| 3   | লেখকের মতে অতি প্রকাণ্ড বটগাছ কত ছোট বীজ থেকে জন্মায়?                                    | সরিষার চেয়েও ছোট বীজ থেকে                                             | গাছের কথা                     | সরিষা অপেক্ষা ছোট বীজ থেকে জন্মায়।                                    | yes               | PASS     |
+| 4   | অঙ্কুর বের হওয়ার পর যে অংশ মাটির ভিতরে যায় এবং যে অংশ উপরের দিকে বাড়ে, সেগুলোর নাম কী? | মাটির ভিতরের অংশের নাম মূল, উপরের অংশের নাম কাণ্ড                      | উদ্ভিদের জন্ম ও মৃত্যু        | মূল এবং কাণ্ড।                                                         | yes               | PASS     |
+| 5   | ইতালির অধ্যাপক গ্যালভানিকে লোকেরা কী নামে উপহাস করত?                                      | 'ব্যাঙ-নাচানো' অধ্যাপক                                                 | মন্ত্রের সাধন                 | লোকেরা তাকে “ব্যাঙ‑নাচান” অধ্যাপক বলে উপহাস করত।                       | yes               | PASS     |
+| 6   | সোয়ার্জ কোন ধাতু দিয়ে বেলুন তৈরি করেছিলেন?                                              | আলুমিনিয়াম                                                            | মন্ত্রের সাধন                 | অ্যালুমিনিয়াম।                                                        | yes               | PASS     |
+| 7   | জাহাজে প্রচণ্ড ঝড়ের সময় লেখক ঢেউ শান্ত করতে সমুদ্রে কী ঢেলে দিয়েছিলেন?                 | 'কুন্তল-কেশরী' নামের কেশতৈল                                            | পলাতক তুফান                   | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | yes               | **FAIL** |
+| 8   | লঙ্কাদ্বীপ যাওয়ার জন্য লেখক কোন জাহাজে সমুদ্রযাত্রা করেছিলেন?                            | চুসান জাহাজে                                                           | পলাতক তুফান                   | চুসান জাহাজে।                                                          | yes               | PASS     |
+| 9   | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী কী উত্তর দিত?                                      | নদী উত্তর দিত, "মহাদেবের জটা হইতে"                                     | ভাগীরথীর উৎস-সন্ধানে          | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী উত্তর দিত: “মহাদেবের জটা হইতে।” | yes               | PASS     |
+| 10  | জগদীশচন্দ্র বসু কত সালে নোবেল পুরস্কার পেয়েছিলেন?                                        | বইটিতে এর উল্লেখ নেই। চ্যাটবটের বলা উচিত যে উত্তর বইয়ে পাওয়া যায়নি। | (not in book)                 | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | -                 | PASS     |
 
 **How a question is scored.** An answerable question passes when the chatbot gives an answer (not the
 refusal) and that answer contains one of the question's keywords. Question 10 passes when the chatbot
@@ -163,16 +178,23 @@ exists in the crawled text and prints a warning if not.
 ### What the results show
 
 - **Answers stay inside the book.** Where the chatbot answered, its answers match the expected
-  answers. Question 9 is a direct quotation of the book's wording. The one question that has no
+  answers. Question 9's answer quotes the book's own phrase. The one question that has no
   answer in the book (question 10) got the refusal message.
-- **Retrieval found the right passage every time.** For all 9 answerable questions, one of the top
-  4 chunks came from the right chapter and contained the answer keyword (Hit@4 = 9/9).
+- **Retrieval found a matching chunk every time.** For all 9 answerable questions, one of the top
+  4 chunks came from the right chapter and contained the answer keyword (Hit@4 = 9/9). Question 7
+  shows the limit of this check: a chunk can contain the keyword without holding the exact
+  answering sentence.
 - **Why k = 4 and not 1.** The right passage was the first result for 7 of the 9 questions
   (Hit@1 = 7/9) but within the top 4 for all 9. Passing several chunks to the LLM recovers the
   cases where the best chunk is not ranked first.
-- **One failure: question 7.** The chatbot answered with the refusal message even though the
-  retrieval check passed. The failure therefore happened when the answer was generated, not when the
-  passage was ranked. See [Limitations and known issues](#limitations-and-known-issues).
+- **Two evaluation runs agree.** The evaluation was run twice. Both runs scored 9 of 10 with the same
+  chunk counts and the same Hit@1 and Hit@4. Nine of the ten answers were identical; only the
+  punctuation of question 9's answer changed.
+- **One failure: question 7.** In both runs the chatbot answered with the refusal message even though
+  the retrieval check passed. The failure therefore happened when the answer was generated, not when
+  the passage was ranked. When the same question was typed by hand into the Streamlit app, the
+  chatbot answered it correctly ("তিনি সমুদ্রে তৈল ঢেলে দিয়েছিলেন।"). That manual answer is not part
+  of the scores above. See [Limitations and known issues](#limitations-and-known-issues).
 
 ### Bonus: two chunking strategies compared
 
@@ -252,9 +274,11 @@ abyakta-rag-chatbot/
 
 ## Limitations and known issues
 
-- **Question 7 fails (open issue).** The chatbot refused a question the book does answer. The
-  retrieval check passed, so the cause is in the generation step, but this run does not show which
-  of two things is responsible, and neither has been confirmed:
+- **Question 7 is unstable (open issue).** The chatbot refused a question the book does answer in
+  both evaluation runs, yet answered it correctly once in the Streamlit app. The retrieval check
+  passed, so the cause is in the generation step. Retrieval returns the same chunks for the same
+  question and index, so the difference most likely comes from the model's output changing between
+  calls. Two things could make this question fragile, and neither has been confirmed:
   - The "hit" rule only checks that the keyword `কুন্তল` appears in a retrieved chunk from the right
     chapter. The hair oil is introduced earlier in that story, so a chunk can contain the keyword
     without containing the passage where the oil is poured into the sea.
@@ -268,7 +292,8 @@ abyakta-rag-chatbot/
   behaviour, not to rank close alternatives. The chunking comparison is a tie for this reason.
 - **Keyword-based scoring.** Pass and hit checks look for a keyword, not for meaning, so they can
   miss correct answers phrased differently and can count a chunk as a hit without it holding the
-  exact answering sentence.
+  exact answering sentence. For example, the correct app answer to question 7 mentions তৈল (oil) but
+  not the name `কুন্তল-কেশরী`, so the automated rule would still mark it FAIL.
 - **Section labels are positions.** The `section` metadata says "part _n_ of _N_" within a chapter;
   it is not a heading taken from the book.
 - **Answers depend on the LLM.** The prompt restricts the model to the retrieved context, but a
@@ -292,4 +317,5 @@ The code in this repository is released under the [MIT License](LICENSE).
 
 The book text is not included in this repository. It is downloaded from
 [Bengali Wikisource](https://bn.wikisource.org) when you run `src.ingest`, and remains subject to the
-terms of that source.
+terms of that source. Wikisource lists the work as public domain: the author died in 1937 and the
+work was first published in 1921.
