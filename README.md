@@ -14,11 +14,11 @@ chatbot says so instead of guessing.
 ## Contents
 
 - [Demo video](#demo-video)
-- [Book information](#book-information)
-- [How it works](#how-it-works)
-- [Technical details](#technical-details)
+- [Book Information](#book-information)
+- [RAG Pipeline](#rag-pipeline)
+- [Technical Details](#technical-details)
 - [Results](#results)
-- [Setup and running](#setup-and-running)
+- [Setup and Running Instructions](#setup-and-running-instructions)
 - [Project structure](#project-structure)
 - [Limitations and known issues](#limitations-and-known-issues)
 - [Troubleshooting](#troubleshooting)
@@ -26,7 +26,7 @@ chatbot says so instead of guessing.
 
 ## Demo video
 
-[Watch the demo video](https://drive.google.com/file/d/1C9p6uQvFDLKIvuFyWCWYidlCaCTGWXjj/view?usp=sharing)
+[Watch the demo video](https://drive.google.com/file/d/1YLo0bBXMnBPr1bBhodfietB4jMBjUKIB/view?usp=sharing)
 
 The video shows:
 
@@ -34,14 +34,14 @@ The video shows:
 2. Questions about the book answered with chapter citations.
 3. A question the book cannot answer, where the chatbot refuses instead of guessing.
 
-## Book information
+## Book Information
 
-|                     |                                                              |
-| ------------------- | ------------------------------------------------------------ |
-| **Book**            | অব্যক্ত (_Abyakta_)                                          |
-| **Author**          | জগদীশচন্দ্র বসু (Jagadish Chandra Bose)                      |
-| **Publication**     | First published Ashwin 1328 (1921); the Wikisource edition is the third printing (Poush 1364). Publisher: বঙ্গীয় বিজ্ঞান পরিষদ |
-| **Source**          | [Bengali Wikisource](https://bn.wikisource.org/wiki/অব্যক্ত) |
+|                 |                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Book**        | অব্যক্ত (_Abyakta_)                                                                                                             |
+| **Author**      | জগদীশচন্দ্র বসু (Jagadish Chandra Bose)                                                                                         |
+| **Publication** | First published Ashwin 1328 (1921); the Wikisource edition is the third printing (Poush 1364). Publisher: বঙ্গীয় বিজ্ঞান পরিষদ |
+| **Source**      | [Bengali Wikisource](https://bn.wikisource.org/wiki/অব্যক্ত)                                                                    |
 
 _Abyakta_ is a collection of about twenty prose pieces: popular-science essays on plants, sound,
 light and the "ether", essays on the struggle behind scientific discovery, and a few stories such as
@@ -50,7 +50,7 @@ the content is factual, which suits a question-answering system. The text is in 
 (সাধু ভাষা), while questions are usually asked in modern Bengali (চলিত), so retrieval has to match
 meaning rather than exact words.
 
-## How it works
+## RAG Pipeline
 
 The system has two phases. **Indexing** runs once and prepares the book. **Answering** runs for
 every question.
@@ -93,28 +93,32 @@ characters of raw text before cleaning. The chapters are অগ্নি পর�
 নিবেদন, নির্ব্বাক জীবন, পলাতক তুফান, বিজ্ঞানে সাহিত্য, বোধন, ভাগীরথীর উৎস-সন্ধানে, মনন ও করণ,
 মন্ত্রের সাধন, যুক্তকর, রাণী-সন্দর্শন, স্নায়ুসূত্রে উত্তেজনা-প্রবাহ and হাজির!. This matches the twenty
 pieces the book is documented to contain, so no chapter was missed. The smallest chapter has 1,973
-characters and the largest 19,597.
+characters and the largest 19,597. The crawl was repeated from a fresh environment with the same
+result (21 pages, 199,474 characters). In that run Wikisource rate-limited the crawler twice; it
+waited (17 s and 41 s) and carried on without failing.
 
 **Questions the book cannot answer.** The prompt tells the model to reply with one fixed sentence
 (_"দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।"_) when the context does not contain the answer.
 The app detects that sentence, shows it, and displays no sources.
 
-## Technical details
+## Technical Details
 
-| Item                   | Choice                                                                      | Why                                                                                                                                   |
-| ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Embedding model        | `BAAI/bge-m3`                                                               | Multilingual, supports Bengali, needs no query or passage prefixes, and matches meaning across the সাধু / চলিত gap.                   |
-| Chunk size and overlap | 500 / 100 characters (default)                                              | About a short paragraph, so a chunk holds one idea. The overlap keeps an answer that falls on a boundary whole in at least one chunk. |
-| Splitting rule         | Paragraph, then line, then sentence end (`।`), then space                   | Chunks break at natural places, not mid-sentence.                                                                                     |
-| Metadata               | `book`, `chapter`, `section` (part _n_ of _N_ in the chapter), `source_url` | Used for citations.                                                                                                                   |
-| Vector database        | FAISS (`faiss-cpu`)                                                         | Simple, fast, stored as plain files.                                                                                                  |
-| Retriever              | Similarity search, top **k = 4**                                            | Enough context without flooding the prompt.                                                                                           |
-| LLM                    | Groq `openai/gpt-oss-20b`, temperature 0                                    | Free tier; temperature 0 keeps answers factual and repeatable. The model name can be changed in `.env`.                               |
-| Interface              | Streamlit chat UI                                                           | Minimal code, runs in the browser.                                                                                                    |
+| Item                        | Choice                                                                                                                     | Why                                                                                                                                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Embedding model used**    | `BAAI/bge-m3`                                                                                                              | Multilingual, supports Bengali, needs no query or passage prefixes, and matches meaning across the সাধু / চলিত gap. Full reasoning in [Why the embedding model was selected](#why-the-embedding-model-was-selected-bge-m3-for-bengali). |
+| **Chunk size**              | 500 characters (default); 1000 for the comparison strategy                                                                 | About a short paragraph, so a chunk holds one idea and the retriever can point to the exact passage.                                                                                                                                    |
+| **Chunk overlap**           | 100 characters (200 for the 1000-character strategy)                                                                       | An answer that falls on a chunk boundary still appears whole in at least one chunk.                                                                                                                                                     |
+| **Preprocessing approach**  | Unicode NFC normalisation; removal of invisible characters, footnote markers and extra whitespace; zero-width joiners kept | Keeps Bengali text consistent. Some Bengali letters need the joiners, so they are not removed.                                                                                                                                          |
+| Splitting rule              | Paragraph, then line, then sentence end (`।`), then space                                                                  | Chunks break at natural places, not mid-sentence.                                                                                                                                                                                       |
+| Metadata                    | `book`, `chapter`, `section` (part _n_ of _N_ in the chapter), `source_url`                                                | Used for citations.                                                                                                                                                                                                                     |
+| **Vector database used**    | FAISS (`faiss-cpu`), one index per chunking strategy, saved to disk                                                        | Simple, fast, stored as plain files.                                                                                                                                                                                                    |
+| **Retriever configuration** | LangChain retriever, similarity search, top **k = 4** chunks                                                               | Enough context without flooding the prompt.                                                                                                                                                                                             |
+| **LLM used**                | Groq `openai/gpt-oss-20b`, temperature 0                                                                                   | Free tier; temperature 0 keeps answers factual and repeatable. The model name can be changed in `.env`.                                                                                                                                 |
+| Interface                   | Streamlit chat UI                                                                                                          | Minimal code, runs in the browser.                                                                                                                                                                                                      |
 
 Every value above is defined in one place, [`src/config.py`](src/config.py).
 
-### Why BGE-M3 for Bengali
+### Why the embedding model was selected (BGE-M3 for Bengali)
 
 - **How it supports Bengali.** BGE-M3 is built on the multilingual XLM-RoBERTa model and trained for
   more than 100 languages, Bengali included. Its tokenizer reads Bengali script, and Bengali questions
@@ -140,6 +144,7 @@ guessing. The block below is written by `python -m src.evaluate`, and the same t
 [`RESULTS.md`](RESULTS.md).
 
 <!-- RESULTS:START -->
+
 ### Test questions
 
 **9 of 10 passed.**
@@ -147,11 +152,12 @@ guessing. The block below is written by `python -m src.evaluate`, and the same t
 ### Chunking strategy comparison
 
 | Strategy | Chunk size / overlap | Chunks | Hit@1 | Hit@4 |
-|---|---|---|---|---|
-| small | 500 / 100 | 651 | 7/9 | 9/9 |
-| large | 1000 / 200 | 353 | 7/9 | 9/9 |
+| -------- | -------------------- | ------ | ----- | ----- |
+| small    | 500 / 100            | 651    | 7/9   | 9/9   |
+| large    | 1000 / 200           | 353    | 7/9   | 9/9   |
 
 A hit means a retrieved chunk is from the right chapter and contains the answer keyword.
+
 <!-- RESULTS:END -->
 
 Of the nine answerable questions, 8 passed. The one question that cannot be answered from the book
@@ -195,10 +201,11 @@ exists in the crawled text and prints a warning if not.
 - **Why k = 4 and not 1.** The right passage was the first result for 7 of the 9 questions
   (Hit@1 = 7/9) but within the top 4 for all 9. Passing several chunks to the LLM recovers the
   cases where the best chunk is not ranked first.
-- **Two evaluation runs agree.** The evaluation was run twice. Both runs scored 9 of 10 with the same
-  chunk counts and the same Hit@1 and Hit@4. Nine of the ten answers were identical; only the
-  punctuation of question 9's answer changed.
-- **One failure: question 7.** In both runs the chatbot answered with the refusal message even though
+- **Three evaluation runs agree.** The evaluation was run three times, the last time from a fresh
+  virtual environment and a fresh crawl. All three scored 9 of 10 with the same chunk counts and the
+  same Hit@1 and Hit@4. The second and third runs are identical; the first differs only in the
+  punctuation of question 9's answer.
+- **One failure: question 7.** In all three runs the chatbot answered with the refusal message even though
   the retrieval check passed. The failure therefore happened when the answer was generated, not when
   the passage was ranked. When the same question was typed by hand into the Streamlit app, the
   chatbot answered it correctly ("তিনি সমুদ্রে তৈল ঢেলে দিয়েছিলেন।"). That manual answer is not part
@@ -222,9 +229,12 @@ so this test cannot separate them. `small` is the default because a prompt with 
 carries at most half as much text as one with four large chunks. That is a design choice for speed
 and cost, not a measured accuracy advantage.
 
-## Setup and running
+## Setup and Running Instructions
 
-**Requirements:** Python 3.10 or newer and a free [Groq API key](https://console.groq.com/keys).
+**Required Python version:** Python 3.10 or newer. You also need a free
+[Groq API key](https://console.groq.com/keys).
+
+### Installation steps
 
 ```bash
 # 1. Get the code
@@ -235,14 +245,22 @@ cd knowledge-base-bangla-rag-chatbot-with-vectorDB
 python -m venv .venv
 source .venv/bin/activate          # Windows PowerShell: .venv\Scripts\Activate.ps1
 
-# 3. Install dependencies (the first install is large because of PyTorch)
+# 3. Install the dependencies (the first install is large because of PyTorch)
 pip install -r requirements.txt
 
 # 4. Add your Groq key
 cp .env.example .env               # Windows: copy .env.example .env
 #    then open .env and paste your key
+```
 
-# 5. Run the steps in order
+**How to install dependencies:** run `pip install -r requirements.txt` inside the activated
+virtual environment (step 3 above).
+
+### How to run the chatbot
+
+Run the steps in order:
+
+```bash
 python -m src.ingest               # crawl the book from Wikisource -> data/chapters.json
 python -m src.build_index          # chunk, embed and save the FAISS indexes -> vector_store/
 streamlit run app.py               # start the chatbot in your browser
@@ -268,9 +286,12 @@ knowledge-base-bangla-rag-chatbot-with-vectorDB/
 ├── app.py                  # Streamlit chat interface
 ├── requirements.txt
 ├── .env.example            # copy to .env and add GROQ_API_KEY
+├── README.md
 ├── LICENSE
 ├── RESULTS.md              # generated by src.evaluate: every test answer
+├── .gitignore              # keeps .env, data/ and vector_store/ out of git
 ├── src/
+│   ├── __init__.py
 │   ├── config.py           # every setting in one place
 │   ├── ingest.py           # step 1: crawl Wikisource
 │   ├── chunking.py         # cleaning, chunking, metadata
@@ -287,7 +308,7 @@ knowledge-base-bangla-rag-chatbot-with-vectorDB/
 ## Limitations and known issues
 
 - **Question 7 is unstable (open issue).** The chatbot refused a question the book does answer in
-  both evaluation runs, yet answered it correctly once in the Streamlit app. The retrieval check
+  all three evaluation runs, yet answered it correctly once in the Streamlit app. The retrieval check
   passed, so the cause is in the generation step. Retrieval returns the same chunks for the same
   question and index, so the difference most likely comes from the model's output changing between
   calls. Two things could make this question fragile, and neither has been confirmed:
