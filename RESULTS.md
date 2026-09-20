@@ -1,19 +1,19 @@
 # Evaluation results
 
-### Test questions
+The current evaluation uses 10 test questions. Nine are answerable from **অব্যক্ত**; question 10 asks for information that is not in the book and is expected to trigger the refusal response.
 
-**9 of 10 passed.**
+**Result: 9 of 10 passed.**
 
-### Chunking strategy comparison
+## Chunking comparison
 
 | Strategy | Chunk size / overlap | Chunks | Hit@1 | Hit@4 |
-| -------- | -------------------- | ------ | ----- | ----- |
-| small    | 500 / 100            | 651    | 7/9   | 9/9   |
-| large    | 1000 / 200           | 353    | 7/9   | 9/9   |
+| -------- | -------------------- | -----: | ----: | ----: |
+| `small`  | 500 / 100            |    651 |   7/9 |   9/9 |
+| `large`  | 1000 / 200           |    353 |   7/9 |   9/9 |
 
-A hit means a retrieved chunk is from the right chapter and contains the answer keyword.
+A hit means that one of the retrieved chunks came from the expected chapter and contained the answer keyword.
 
-### Every test question
+## Test questions
 
 | #   | Question                                                                                  | Expected answer                                                        | Chapter                       | Chatbot answer                                                         | Right passage retrieved | Result |
 | --- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- | ----------------------- | ------ |
@@ -27,3 +27,13 @@ A hit means a retrieved chunk is from the right chapter and contains the answer 
 | 8   | লঙ্কাদ্বীপ যাওয়ার জন্য লেখক কোন জাহাজে সমুদ্রযাত্রা করেছিলেন?                            | চুসান জাহাজে                                                           | পলাতক তুফান                   | চুসান জাহাজে।                                                          | yes                     | PASS   |
 | 9   | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী কী উত্তর দিত?                                      | নদী উত্তর দিত, "মহাদেবের জটা হইতে"                                     | ভাগীরথীর উৎস-সন্ধানে          | লেখক ছোটবেলায় নদীকে জিজ্ঞাসা করলে নদী উত্তর দিত: “মহাদেবের জটা হইতে।” | yes                     | PASS   |
 | 10  | জগদীশচন্দ্র বসু কত সালে নোবেল পুরস্কার পেয়েছিলেন?                                        | বইটিতে এর উল্লেখ নেই। চ্যাটবটের বলা উচিত যে উত্তর বইয়ে পাওয়া যায়নি। | (not in book)                 | দুঃখিত, এই প্রশ্নের উত্তর বইটিতে পাওয়া যায়নি।                        | -                       | PASS   |
+
+## Notes on scoring
+
+Answerable questions pass when the chatbot gives an answer rather than the refusal sentence and the answer contains one of the question's expected keywords.
+
+Question 10 passes when the chatbot refuses.
+
+The scoring is based on keyword matching, not semantic evaluation. That means a correct answer can be marked as a failure when it uses different wording, and an incorrect answer could pass if it happens to contain the expected keyword. The keyword list also accounts for spelling differences such as **আলুমিনিয়াম** and **অ্যালুমিনিয়াম**.
+
+Before scoring, the evaluation checks that the expected chapter and keywords exist in the crawled text and reports a warning when they do not.
